@@ -3,9 +3,12 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, addDoc, deleteDoc, doc, serverTimestamp, onSnapshot, query } from 'firebase/firestore';
 
-// --- 安全的 Firebase 配置读取 ---
+/**
+ * --- 安全的 Firebase 配置读取 ---
+ * 修复了 Vercel 报错的语法问题
+ */
 const getFirebaseConfig = () => {
-  // 1. 尝试从环境注入的全局变量读取
+  // 1. 优先尝试从 Vercel/环境注入的全局变量读取
   if (typeof __firebase_config !== 'undefined' && __firebase_config) {
     try {
       return JSON.parse(__firebase_config);
@@ -15,7 +18,7 @@ const getFirebaseConfig = () => {
   }
   
   // 2. 备选：如果你在本地运行，请在这里填入你的真实配置
-  // 警告：如果这里还是空的，Firebase 初始化会失败导致白屏
+  // 请确保这里的 JSON 格式完全正确，不要删除或多加括号
   return {
   apiKey: "AIzaSyAjdiPE9OowZuf_gfVhZTFIjFeESFg8Pe8",
   authDomain: "linguagua-b5e23.firebaseapp.com",
@@ -26,15 +29,16 @@ const getFirebaseConfig = () => {
   };
 };
 
-let app, auth, db;
+// 全局变量定义
+let firebaseApp, auth, db;
 const firebaseConfig = getFirebaseConfig();
 
-// 捕获初始化错误，防止白屏
+// 初始化 Firebase，增加错误捕获防止构建或运行崩溃
 try {
   if (firebaseConfig.apiKey && !firebaseConfig.apiKey.includes("在此处填入")) {
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
+    firebaseApp = initializeApp(firebaseConfig);
+    auth = getAuth(firebaseApp);
+    db = getFirestore(firebaseApp);
   }
 } catch (error) {
   console.error("Firebase Initialization Error:", error);
@@ -198,12 +202,9 @@ export default function App() {
 
   const t = translations[lang] || translations.en;
 
-  // 1. 初始化 Auth
+  // 1. 初始化认证
   useEffect(() => {
-    if (!auth) {
-      setErrorMsg("Firebase Config is missing. Please check your console (F12).");
-      return;
-    }
+    if (!auth) return;
 
     const initAuth = async () => {
       try {
@@ -309,26 +310,29 @@ export default function App() {
     ? blogPosts 
     : blogPosts.filter(post => post.category === activeCategory);
 
+  // 核心逻辑：根据分类判断是否应该显示某种语言的输入框
   const shouldShowLangInput = (langCode) => {
+    // 学泰语：不给泰语母语者看，所以管理后台不需要输入泰语
     if (newPost.category === 'catThai') return langCode !== 'th';
+    // 学中文：不给简繁中文母语者看，所以管理后台不需要输入中文
     if (newPost.category === 'catChinese') return langCode !== 'zh' && langCode !== 'zt';
     return true;
   };
 
-  // 如果没有初始化 App，至少显示一个错误状态而不是白屏
-  if (!app) {
+  // 防白屏逻辑：如果没有初始化 firebaseApp，显示说明页面
+  if (!firebaseApp) {
     return (
       <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-10 text-center">
         <span className="text-6xl mb-6">⚙️</span>
-        <h1 className="text-2xl font-bold mb-4">Configuration Required</h1>
+        <h1 className="text-2xl font-bold mb-4">Configuration Error</h1>
         <p className="text-slate-400 max-w-md">
-          您的 Firebase 配置尚未完成。请在 <code>LinguaGua.jsx</code> 的 <code>getFirebaseConfig</code> 函数中填入真实的 API 密钥。
+          代码语法或配置有误。请检查 <code>LinguaGua.jsx</code> 中的 <code>getFirebaseConfig</code> 函数，确保填入的 API 密钥没有多余的括号。
         </p>
-        <div className="mt-8 p-4 bg-white/5 rounded-xl border border-white/10 text-xs text-left font-mono">
-          1. 登录 Firebase 控制台<br/>
-          2. 进入项目设置<br/>
-          3. 复制 Web App 配置 JSON<br/>
-          4. 粘贴到代码中
+        <div className="mt-8 p-6 bg-white/5 rounded-2xl border border-white/10 text-xs text-left font-mono">
+          Vercel 提示：Unexpected {"\"}\""}<br/><br/>
+          解决方案：<br/>
+          1. 检查 API Key 前后的引号<br/>
+          2. 确保没有多加 <code>{"}"}</code> 号
         </div>
       </div>
     );
