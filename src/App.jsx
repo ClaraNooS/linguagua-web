@@ -4,18 +4,15 @@ import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged }
 import { getFirestore, collection, addDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 
 // --- 环境配置读取 ---
-// 在预览环境中，__firebase_config 和 __app_id 会由环境自动注入
-// 如果在本地部署，请将此处替换为真实的配置对象
-const firebaseConfig = typeof __firebase_config !== 'undefined' 
-  ? JSON.parse(__firebase_config) 
-  : {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_AUTH_DOMAIN",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_STORAGE_BUCKET",
-      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-      appId: "YOUR_APP_ID"
-    };
+const firebaseConfig = {
+  apiKey: "AIzaSyAjdiPE9OowZuf_gfVhZTFIjFeESFg8Pe8",
+  authDomain: "linguagua-b5e23.firebaseapp.com",
+  projectId: "linguagua-b5e23",
+  storageBucket: "linguagua-b5e23.firebasestorage.app",
+  messagingSenderId: "943989183133",
+  appId: "1:943989183133:web:745fae40d35d84223afa74",
+  measurementId: "G-V4TTFZHZ9G"
+};
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
