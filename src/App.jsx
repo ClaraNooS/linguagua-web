@@ -7,7 +7,7 @@ import { getFirestore, collection, addDoc, deleteDoc, doc, serverTimestamp, onSn
 const firebaseConfig = typeof __firebase_config !== 'undefined' 
   ? JSON.parse(__firebase_config) 
   : {
-      apiKey: "YOUR_API_KEY", 
+      apiKey: "", // 保持为空，环境会自动注入
       authDomain: "YOUR_AUTH_DOMAIN",
       projectId: "YOUR_PROJECT_ID",
       storageBucket: "YOUR_STORAGE_BUCKET",
@@ -36,6 +36,9 @@ const IconPlus = () => (
 );
 const IconTrash = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+);
+const IconImage = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
 );
 
 // --- 多语言翻译 ---
@@ -124,7 +127,20 @@ const BlogCard = ({ post, lang, tReadMore, tCategory, isAdmin, onDelete }) => (
         <IconTrash />
       </button>
     )}
-    <div className="h-48 bg-slate-50 flex items-center justify-center text-7xl group-hover:scale-110 transition-transform duration-500">{post.image}</div>
+    <div className="h-56 bg-slate-100 overflow-hidden relative flex items-center justify-center">
+      {post.imageUrl ? (
+        <img 
+          src={post.imageUrl} 
+          alt="Blog cover" 
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+          onError={(e) => { e.target.style.display = 'none'; }}
+        />
+      ) : (
+        <span className="text-7xl group-hover:scale-110 transition-transform duration-500">
+          {post.category === 'catThai' ? '🐘' : '🐼'}
+        </span>
+      )}
+    </div>
     <div className="p-8 flex flex-col flex-1">
       <div className="flex items-center gap-3 mb-4">
         <span className="px-3 py-1 bg-[#00FFAB]/10 text-[#008F60] text-xs font-bold rounded-full uppercase tracking-wider">{tCategory}</span>
@@ -132,9 +148,9 @@ const BlogCard = ({ post, lang, tReadMore, tCategory, isAdmin, onDelete }) => (
           {post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleDateString() : 'Just now'}
         </span>
       </div>
-      <h3 className="text-xl font-bold mb-4 text-slate-900 leading-snug group-hover:text-[#00FFAB] transition-colors">{post.title[lang] || post.title.en}</h3>
+      <h3 className="text-xl font-bold mb-4 text-slate-900 leading-snug group-hover:text-[#00FFAB] transition-colors line-clamp-2">{post.title[lang] || post.title.en}</h3>
       <p className="text-slate-500 text-sm mb-6 line-clamp-3 leading-relaxed">{post.excerpt[lang] || post.excerpt.en}</p>
-      <div className="mt-auto pt-4 flex items-center gap-2 text-[#00FFAB] font-bold text-sm">{tReadMore} <IconChevronRight /></div>
+      <div className="mt-auto pt-4 flex items-center gap-2 text-[#00FFAB] font-bold text-sm cursor-pointer">{tReadMore} <IconChevronRight /></div>
     </div>
   </div>
 );
@@ -159,7 +175,7 @@ export default function App() {
   // 管理员表单状态
   const [newPost, setNewPost] = useState({
     category: 'catThai',
-    image: '🐘',
+    imageUrl: '', // 替换了原来的 image (emoji)
     title: { en: '', zh: '', zt: '', th: '' },
     excerpt: { en: '', zh: '', zt: '', th: '' }
   });
@@ -247,7 +263,7 @@ export default function App() {
       });
       setNewPost({
         category: 'catThai',
-        image: '🐘',
+        imageUrl: '',
         title: { en: '', zh: '', zt: '', th: '' },
         excerpt: { en: '', zh: '', zt: '', th: '' }
       });
@@ -368,7 +384,7 @@ export default function App() {
             </div>
 
             <form onSubmit={handleAddPost} className="space-y-8 bg-slate-50 p-8 rounded-3xl border border-slate-200">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
                   <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Category</label>
                   <select 
@@ -381,16 +397,28 @@ export default function App() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Icon (Emoji)</label>
+                  <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-2">
+                    <IconImage /> Feature Image (URL)
+                  </label>
                   <input 
-                    type="text" 
-                    value={newPost.image} 
-                    onChange={e => setNewPost({...newPost, image: e.target.value})}
-                    placeholder="🐘"
+                    type="url" 
+                    value={newPost.imageUrl} 
+                    onChange={e => setNewPost({...newPost, imageUrl: e.target.value})}
+                    placeholder="https://example.com/photo.jpg"
                     className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#00FFAB]"
                   />
                 </div>
               </div>
+
+              {/* 图片预览区域 */}
+              {newPost.imageUrl && (
+                <div className="animate-in fade-in slide-in-from-top-4">
+                  <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Image Preview</label>
+                  <div className="w-full h-48 rounded-2xl border-2 border-dashed border-slate-200 overflow-hidden bg-white flex items-center justify-center">
+                    <img src={newPost.imageUrl} alt="Preview" className="max-w-full max-h-full object-contain" />
+                  </div>
+                </div>
+              )}
 
               {/* 动态显示标题输入 */}
               <div className="space-y-4">
