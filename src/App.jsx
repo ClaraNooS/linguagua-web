@@ -273,12 +273,23 @@ export default function App() {
     ? blogPosts 
     : blogPosts.filter(post => post.category === activeCategory);
 
+  // 辅助函数：根据分类判断是否应该显示某种语言的输入框
+  const shouldShowLangInput = (langCode) => {
+    if (newPost.category === 'catThai') {
+      return langCode !== 'th'; // 学泰语时不显示泰语输入
+    }
+    if (newPost.category === 'catChinese') {
+      return langCode !== 'zh' && langCode !== 'zt'; // 学中文时不显示中/繁输入
+    }
+    return true;
+  };
+
   return (
     <div className="min-h-screen bg-white text-slate-800 font-sans selection:bg-[#00FFAB]/30">
       {/* 导航栏 */}
       <nav className="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 h-16">
         <div className="max-w-6xl mx-auto px-6 h-full flex items-center justify-between">
-          {/* Logo 区域：现在是隐藏的管理入口 */}
+          {/* Logo 区域 */}
           <div 
             className="flex items-center gap-2 cursor-pointer select-none active:scale-95 transition-transform" 
             onClick={handleLogoClick}
@@ -381,10 +392,11 @@ export default function App() {
                 </div>
               </div>
 
+              {/* 动态显示标题输入 */}
               <div className="space-y-4">
                 <label className="block text-xs font-black uppercase tracking-widest text-slate-400">Post Titles</label>
-                {languages.map(l => (
-                  <div key={l.code} className="flex items-center gap-4">
+                {languages.filter(l => shouldShowLangInput(l.code)).map(l => (
+                  <div key={l.code} className="flex items-center gap-4 animate-in fade-in zoom-in duration-300">
                     <span className="w-8 text-[10px] font-bold text-slate-400">{l.code.toUpperCase()}</span>
                     <input 
                       type="text" 
@@ -398,10 +410,11 @@ export default function App() {
                 ))}
               </div>
 
+              {/* 动态显示摘要输入 */}
               <div className="space-y-4">
                 <label className="block text-xs font-black uppercase tracking-widest text-slate-400">Post Excerpts (Summary)</label>
-                {languages.map(l => (
-                  <div key={l.code} className="flex items-center gap-4">
+                {languages.filter(l => shouldShowLangInput(l.code)).map(l => (
+                  <div key={l.code} className="flex items-center gap-4 animate-in fade-in zoom-in duration-300">
                     <span className="w-8 text-[10px] font-bold text-slate-400">{l.code.toUpperCase()}</span>
                     <textarea 
                       required
