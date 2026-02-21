@@ -4,26 +4,25 @@ import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged }
 import { getFirestore, collection, addDoc, deleteDoc, doc, serverTimestamp, onSnapshot, query } from 'firebase/firestore';
 
 // --- 安全的 Firebase 配置读取 ---
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
+const getFirebaseConfig = () => {
+  // 1. 尝试从环境注入的全局变量读取
+  if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+    try {
+      return JSON.parse(__firebase_config);
+    } catch (e) {
+      console.error("Failed to parse __firebase_config", e);
+    }
+  }
+  
+  // 2. 备选：如果你在本地运行，请在这里填入你的真实配置
+  // 警告：如果这里还是空的，Firebase 初始化会失败导致白屏
+  return {
   apiKey: "AIzaSyAjdiPE9OowZuf_gfVhZTFIjFeESFg8Pe8",
   authDomain: "linguagua-b5e23.firebaseapp.com",
   projectId: "linguagua-b5e23",
   storageBucket: "linguagua-b5e23.firebasestorage.app",
   messagingSenderId: "943989183133",
-  appId: "1:943989183133:web:745fae40d35d84223afa74",
-  measurementId: "G-V4TTFZHZ9G"
-};
-  
-  // 2. 备选：如果你在本地运行，请在这里填入你的真实配置
-  // 警告：如果这里还是空的，Firebase 初始化会失败导致白屏
-  return {
-    apiKey: "在此处填入你的真实API_KEY", 
-    authDomain: "你的项目名.firebaseapp.com",
-    projectId: "你的项目ID",
-    storageBucket: "你的项目名.appspot.com",
-    messagingSenderId: "你的发送者ID",
-    appId: "你的APP_ID"
+  appId: "1:943989183133:web:745fae40d35d84223afa74"
   };
 };
 
