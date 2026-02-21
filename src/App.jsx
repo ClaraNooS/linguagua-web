@@ -3,22 +3,44 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, addDoc, deleteDoc, doc, serverTimestamp, onSnapshot, query } from 'firebase/firestore';
 
-// --- 优先级配置读取 ---
-const firebaseConfig = typeof __firebase_config !== 'undefined' 
-  ? JSON.parse(__firebase_config) 
-  : {
-      apiKey: "", // 保持为空，环境会自动注入
-      authDomain: "YOUR_AUTH_DOMAIN",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_STORAGE_BUCKET",
-      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-      appId: "YOUR_APP_ID"
-    };
+// --- 安全的 Firebase 配置读取 ---
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyAjdiPE9OowZuf_gfVhZTFIjFeESFg8Pe8",
+  authDomain: "linguagua-b5e23.firebaseapp.com",
+  projectId: "linguagua-b5e23",
+  storageBucket: "linguagua-b5e23.firebasestorage.app",
+  messagingSenderId: "943989183133",
+  appId: "1:943989183133:web:745fae40d35d84223afa74",
+  measurementId: "G-V4TTFZHZ9G"
+};
+  
+  // 2. 备选：如果你在本地运行，请在这里填入你的真实配置
+  // 警告：如果这里还是空的，Firebase 初始化会失败导致白屏
+  return {
+    apiKey: "在此处填入你的真实API_KEY", 
+    authDomain: "你的项目名.firebaseapp.com",
+    projectId: "你的项目ID",
+    storageBucket: "你的项目名.appspot.com",
+    messagingSenderId: "你的发送者ID",
+    appId: "你的APP_ID"
+  };
+};
 
-// 初始化 Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+let app, auth, db;
+const firebaseConfig = getFirebaseConfig();
+
+// 捕获初始化错误，防止白屏
+try {
+  if (firebaseConfig.apiKey && !firebaseConfig.apiKey.includes("在此处填入")) {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+  }
+} catch (error) {
+  console.error("Firebase Initialization Error:", error);
+}
+
 const appId = typeof __app_id !== 'undefined' ? __app_id : "linguagua-app-v1";
 
 // --- 纯内联 SVG 图标 ---
@@ -165,24 +187,25 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState(''); 
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
-
-  // 管理入口逻辑：通过点击 Logo 次数触发
   const [logoClicks, setLogoClicks] = useState(0);
-
-  // 博客数据状态
   const [blogPosts, setBlogPosts] = useState([]);
   
-  // 管理员表单状态
   const [newPost, setNewPost] = useState({
     category: 'catThai',
-    imageUrl: '', // 替换了原来的 image (emoji)
+    imageUrl: '',
     title: { en: '', zh: '', zt: '', th: '' },
     excerpt: { en: '', zh: '', zt: '', th: '' }
   });
 
   const t = translations[lang] || translations.en;
 
+  // 1. 初始化 Auth
   useEffect(() => {
+    if (!auth) {
+      setErrorMsg("Firebase Config is missing. Please check your console (F12).");
+      return;
+    }
+
     const initAuth = async () => {
       try {
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -199,9 +222,9 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 实时监听 Firestore 中的博客文章
+  // 2. 监听博客数据
   useEffect(() => {
-    if (!user) return;
+    if (!user || !db) return;
     const blogQuery = collection(db, 'artifacts', appId, 'public', 'data', 'blogPosts');
     const unsubscribe = onSnapshot(blogQuery, (snapshot) => {
       const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -212,11 +235,10 @@ export default function App() {
     return () => unsubscribe();
   }, [user]);
 
-  // 处理 Logo 点击彩蛋
   const handleLogoClick = () => {
     const newCount = logoClicks + 1;
     if (newCount >= 5) {
-      setLogoClicks(0); // 重置
+      setLogoClicks(0);
       if (!isAdmin) {
         const pass = prompt("Enter Admin Password:");
         if (pass === "admin123") {
@@ -229,14 +251,13 @@ export default function App() {
       }
     } else {
       setLogoClicks(newCount);
-      // 3秒后如果不继续点击则重置计数器
       setTimeout(() => setLogoClicks(0), 3000);
     }
   };
 
   const handleSubscribe = async (e) => {
     e.preventDefault();
-    if (!email || !user) return;
+    if (!email || !user || !db) return;
     setLoading(true);
     setErrorMsg('');
     try {
@@ -254,7 +275,7 @@ export default function App() {
 
   const handleAddPost = async (e) => {
     e.preventDefault();
-    if (!isAdmin) return;
+    if (!isAdmin || !db) return;
     setLoading(true);
     try {
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'blogPosts'), {
@@ -268,7 +289,7 @@ export default function App() {
         excerpt: { en: '', zh: '', zt: '', th: '' }
       });
       alert("Post added successfully!");
-      setPage('blog'); // 发布后回到列表页
+      setPage('blog');
     } catch (err) {
       alert("Error adding post: " + err.message);
     } finally {
@@ -277,7 +298,7 @@ export default function App() {
   };
 
   const handleDeletePost = async (postId) => {
-    if (!window.confirm("Are you sure you want to delete this post?")) return;
+    if (!db || !window.confirm("Are you sure you want to delete this post?")) return;
     try {
       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'blogPosts', postId));
     } catch (err) {
@@ -289,39 +310,46 @@ export default function App() {
     ? blogPosts 
     : blogPosts.filter(post => post.category === activeCategory);
 
-  // 辅助函数：根据分类判断是否应该显示某种语言的输入框
   const shouldShowLangInput = (langCode) => {
-    if (newPost.category === 'catThai') {
-      return langCode !== 'th'; // 学泰语时不显示泰语输入
-    }
-    if (newPost.category === 'catChinese') {
-      return langCode !== 'zh' && langCode !== 'zt'; // 学中文时不显示中/繁输入
-    }
+    if (newPost.category === 'catThai') return langCode !== 'th';
+    if (newPost.category === 'catChinese') return langCode !== 'zh' && langCode !== 'zt';
     return true;
   };
 
+  // 如果没有初始化 App，至少显示一个错误状态而不是白屏
+  if (!app) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-10 text-center">
+        <span className="text-6xl mb-6">⚙️</span>
+        <h1 className="text-2xl font-bold mb-4">Configuration Required</h1>
+        <p className="text-slate-400 max-w-md">
+          您的 Firebase 配置尚未完成。请在 <code>LinguaGua.jsx</code> 的 <code>getFirebaseConfig</code> 函数中填入真实的 API 密钥。
+        </p>
+        <div className="mt-8 p-4 bg-white/5 rounded-xl border border-white/10 text-xs text-left font-mono">
+          1. 登录 Firebase 控制台<br/>
+          2. 进入项目设置<br/>
+          3. 复制 Web App 配置 JSON<br/>
+          4. 粘贴到代码中
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white text-slate-800 font-sans selection:bg-[#00FFAB]/30">
-      {/* 导航栏 */}
       <nav className="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 h-16">
         <div className="max-w-6xl mx-auto px-6 h-full flex items-center justify-between">
-          {/* Logo 区域 */}
-          <div 
-            className="flex items-center gap-2 cursor-pointer select-none active:scale-95 transition-transform" 
-            onClick={handleLogoClick}
-          >
+          <div className="flex items-center gap-2 cursor-pointer select-none active:scale-95 transition-transform" onClick={handleLogoClick}>
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transition-colors ${isAdmin ? 'bg-slate-900' : 'bg-[#00FFAB]'}`}>
               <span className="text-xl">🐸</span>
             </div>
             <span className="text-xl font-black">LinguaGua</span>
           </div>
-
           <div className="hidden md:flex items-center gap-8 font-semibold text-sm">
             <button onClick={() => setPage('home')} className={page === 'home' ? 'text-[#00FFAB]' : 'hover:text-[#00FFAB]'}>{t.navHome}</button>
             {t.navThai && <button onClick={() => setPage('thai')} className={page === 'thai' ? 'text-[#00FFAB]' : 'hover:text-[#00FFAB]'}>{t.navThai}</button>}
             {t.navChinese && <button onClick={() => setPage('chinese')} className={page === 'chinese' ? 'text-[#00FFAB]' : 'hover:text-[#00FFAB]'}>{t.navChinese}</button>}
             <button onClick={() => setPage('blog')} className={page === 'blog' || page === 'admin' ? 'text-[#00FFAB]' : 'hover:text-[#00FFAB]'}>{t.navBlog}</button>
-
             <div className="relative group">
               <button className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200 hover:bg-slate-100 transition-colors">
                 <IconGlobe /><span className="uppercase text-xs">{lang}</span>
@@ -351,7 +379,6 @@ export default function App() {
         ) : page === 'blog' ? (
           <div className="max-w-6xl mx-auto px-6 animate-in fade-in duration-500">
             <h1 className="text-4xl font-black text-center mb-8">{t.blogTitle}</h1>
-            
             <div className="flex flex-wrap justify-center gap-3 mb-12">
               {['catAll', 'catChinese', 'catThai'].map((catKey) => (
                 <button key={catKey} onClick={() => setActiveCategory(catKey)} className={`px-6 py-2 rounded-full text-sm font-bold transition-all border ${activeCategory === catKey ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-500 border-slate-200 hover:border-[#00FFAB] hover:text-[#00FFAB]'}`}>
@@ -364,7 +391,6 @@ export default function App() {
                 </button>
               )}
             </div>
-
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredPosts.map(post => (
                 <BlogCard key={post.id} post={post} lang={lang} tReadMore={t.readMore} tCategory={t[post.category]} isAdmin={isAdmin} onDelete={handleDeletePost} />
@@ -378,39 +404,22 @@ export default function App() {
           <div className="max-w-3xl mx-auto px-6 animate-in slide-in-from-right-10 duration-500">
             <div className="flex items-center justify-between mb-12">
               <h1 className="text-3xl font-black">{t.adminTitle}</h1>
-              <button onClick={() => setPage('blog')} className="text-slate-500 text-sm font-bold flex items-center gap-2 hover:text-slate-800">
-                 {t.backToBlog}
-              </button>
+              <button onClick={() => setPage('blog')} className="text-slate-500 text-sm font-bold flex items-center gap-2 hover:text-slate-800">{t.backToBlog}</button>
             </div>
-
             <form onSubmit={handleAddPost} className="space-y-8 bg-slate-50 p-8 rounded-3xl border border-slate-200">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
                   <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Category</label>
-                  <select 
-                    value={newPost.category} 
-                    onChange={e => setNewPost({...newPost, category: e.target.value})}
-                    className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#00FFAB]"
-                  >
+                  <select value={newPost.category} onChange={e => setNewPost({...newPost, category: e.target.value})} className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#00FFAB]">
                     <option value="catThai">Learn Thai</option>
                     <option value="catChinese">Learn Chinese</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-2">
-                    <IconImage /> Feature Image (URL)
-                  </label>
-                  <input 
-                    type="url" 
-                    value={newPost.imageUrl} 
-                    onChange={e => setNewPost({...newPost, imageUrl: e.target.value})}
-                    placeholder="https://example.com/photo.jpg"
-                    className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#00FFAB]"
-                  />
+                  <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-2"><IconImage /> Feature Image (URL)</label>
+                  <input type="url" value={newPost.imageUrl} onChange={e => setNewPost({...newPost, imageUrl: e.target.value})} placeholder="https://example.com/photo.jpg" className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#00FFAB]" />
                 </div>
               </div>
-
-              {/* 图片预览区域 */}
               {newPost.imageUrl && (
                 <div className="animate-in fade-in slide-in-from-top-4">
                   <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Image Preview</label>
@@ -419,48 +428,25 @@ export default function App() {
                   </div>
                 </div>
               )}
-
-              {/* 动态显示标题输入 */}
               <div className="space-y-4">
                 <label className="block text-xs font-black uppercase tracking-widest text-slate-400">Post Titles</label>
                 {languages.filter(l => shouldShowLangInput(l.code)).map(l => (
                   <div key={l.code} className="flex items-center gap-4 animate-in fade-in zoom-in duration-300">
                     <span className="w-8 text-[10px] font-bold text-slate-400">{l.code.toUpperCase()}</span>
-                    <input 
-                      type="text" 
-                      required
-                      value={newPost.title[l.code]} 
-                      onChange={e => setNewPost({...newPost, title: {...newPost.title, [l.code]: e.target.value}})}
-                      placeholder={`Title in ${l.name}`}
-                      className="flex-1 p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00FFAB]"
-                    />
+                    <input type="text" required value={newPost.title[l.code]} onChange={e => setNewPost({...newPost, title: {...newPost.title, [l.code]: e.target.value}})} placeholder={`Title in ${l.name}`} className="flex-1 p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00FFAB]" />
                   </div>
                 ))}
               </div>
-
-              {/* 动态显示摘要输入 */}
               <div className="space-y-4">
                 <label className="block text-xs font-black uppercase tracking-widest text-slate-400">Post Excerpts (Summary)</label>
                 {languages.filter(l => shouldShowLangInput(l.code)).map(l => (
                   <div key={l.code} className="flex items-center gap-4 animate-in fade-in zoom-in duration-300">
                     <span className="w-8 text-[10px] font-bold text-slate-400">{l.code.toUpperCase()}</span>
-                    <textarea 
-                      required
-                      value={newPost.excerpt[l.code]} 
-                      onChange={e => setNewPost({...newPost, excerpt: {...newPost.excerpt, [l.code]: e.target.value}})}
-                      placeholder={`Summary in ${l.name}`}
-                      rows="2"
-                      className="flex-1 p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00FFAB]"
-                    />
+                    <textarea required value={newPost.excerpt[l.code]} onChange={e => setNewPost({...newPost, excerpt: {...newPost.excerpt, [l.code]: e.target.value}})} placeholder={`Summary in ${l.name}`} rows="2" className="flex-1 p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00FFAB]" />
                   </div>
                 ))}
               </div>
-
-              <button 
-                type="submit" 
-                disabled={loading}
-                className="w-full py-5 bg-[#00FFAB] text-slate-900 font-black rounded-2xl shadow-xl shadow-[#00FFAB]/20 hover:scale-[1.01] active:scale-95 transition-all"
-              >
+              <button type="submit" disabled={loading} className="w-full py-5 bg-[#00FFAB] text-slate-900 font-black rounded-2xl shadow-xl shadow-[#00FFAB]/20 hover:scale-[1.01] active:scale-95 transition-all">
                 {loading ? 'Publishing...' : 'Publish to Production'}
               </button>
             </form>
@@ -479,7 +465,6 @@ export default function App() {
         <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
           <h2 className="text-4xl md:text-5xl font-black mb-6">{t.waitlist}</h2>
           <p className="text-slate-400 mb-12 text-lg">{t.waitlistSub}</p>
-          
           {sent ? (
             <div className="bg-[#00FFAB]/20 border border-[#00FFAB]/40 p-10 rounded-[2.5rem] inline-flex flex-col items-center gap-4 animate-in zoom-in duration-500">
               <div className="w-16 h-16 bg-[#00FFAB] rounded-full flex items-center justify-center text-slate-900 shadow-xl shadow-[#00FFAB]/20"><IconCheck /></div>
@@ -488,11 +473,10 @@ export default function App() {
           ) : (
             <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-4 max-w-xl mx-auto bg-white/5 p-2 rounded-[2rem] border border-white/10 backdrop-blur-sm">
               <input type="email" required placeholder={t.emailPlaceholder} value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} className="flex-1 px-6 py-4 bg-transparent border-none focus:outline-none focus:ring-0 text-white placeholder:text-slate-500" />
-              <button type="submit" disabled={loading} className="px-10 py-4 bg-[#00FFAB] text-slate-900 font-black rounded-[1.5rem] hover:scale-105 active:scale-95 transition-all shadow-lg shadow-[#00FFAB]/20 disabled:opacity-50">
-                {loading ? '...' : t.subscribe}
-              </button>
+              <button type="submit" disabled={loading} className="px-10 py-4 bg-[#00FFAB] text-slate-900 font-black rounded-[1.5rem] hover:scale-105 active:scale-95 transition-all shadow-lg shadow-[#00FFAB]/20 disabled:opacity-50">{loading ? '...' : t.subscribe}</button>
             </form>
           )}
+          {errorMsg && <p className="text-red-400 mt-4 text-xs font-mono">{errorMsg}</p>}
         </div>
       </section>
 
