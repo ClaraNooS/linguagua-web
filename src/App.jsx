@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, addDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, deleteDoc, doc, serverTimestamp, onSnapshot, query } from 'firebase/firestore';
 
 // --- 优先级配置读取 ---
 const firebaseConfig = typeof __firebase_config !== 'undefined' 
@@ -31,6 +31,12 @@ const IconChevronRight = () => (
 const IconCheck = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
 );
+const IconPlus = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+);
+const IconTrash = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+);
 
 // --- 多语言翻译 ---
 const translations = {
@@ -44,7 +50,8 @@ const translations = {
     emailPlaceholder: "Email address",
     subscribe: "Notify Me", footer: "© 2026 LinguaGua Language. All rights reserved.",
     blogTitle: "Insights", readMore: "Read More", 
-    catAll: "All", catChinese: "Learn Chinese", catThai: "Learn Thai"
+    catAll: "All", catChinese: "Learn Chinese", catThai: "Learn Thai",
+    adminTitle: "Manage Content", backToBlog: "Back to Blog", addPost: "Add New Post"
   },
   zh: {
     navHome: "首页", navThai: "学泰语", navBlog: "博客",
@@ -56,7 +63,8 @@ const translations = {
     emailPlaceholder: "电子邮件地址",
     subscribe: "通知我", footer: "© 2026 LinguaGua Language. 版权所有。",
     blogTitle: "语言洞察", readMore: "阅读更多",
-    catAll: "全部", catChinese: "学中文", catThai: "学泰语"
+    catAll: "全部", catChinese: "学中文", catThai: "学泰语",
+    adminTitle: "内容管理后台", backToBlog: "返回博客", addPost: "发布新文章"
   },
   zt: {
     navHome: "首頁", navThai: "學泰語", navBlog: "部落格",
@@ -68,7 +76,8 @@ const translations = {
     emailPlaceholder: "電子郵件地址",
     subscribe: "通知我", footer: "© 2026 LinguaGua Language. 版權所有。",
     blogTitle: "語言洞察", readMore: "閱讀更多",
-    catAll: "全部", catChinese: "學中文", catThai: "學泰語"
+    catAll: "全部", catChinese: "學中文", catThai: "學泰語",
+    adminTitle: "內容管理後台", backToBlog: "返回部落格", addPost: "發佈新文章"
   },
   th: {
     navHome: "หน้าแรก", navChinese: "เรียนภาษาจีน", navBlog: "บล็อก",
@@ -80,7 +89,8 @@ const translations = {
     emailPlaceholder: "ที่อยู่อีเมล",
     subscribe: "แจ้งเตือนฉัน", footer: "© 2026 LinguaGua Language. สงวนลิขสิทธิ์",
     blogTitle: "ความรู้จาก LinguaGua", readMore: "อ่านเพิ่มเติม",
-    catAll: "ทั้งหมด", catChinese: "เรียนภาษาจีน", catThai: "เรียนภาษาไทย"
+    catAll: "ทั้งหมด", catChinese: "เรียนภาษาจีน", catThai: "เรียนภาษาไทย",
+    adminTitle: "จัดการเนื้อหา", backToBlog: "กลับไปที่บล็อก", addPost: "เพิ่มบทความใหม่"
   }
 };
 
@@ -89,33 +99,6 @@ const languages = [
   { code: 'zh', name: '简体中文' },
   { code: 'zt', name: '繁體中文' },
   { code: 'th', name: 'ไทย' }
-];
-
-const blogPosts = [
-  {
-    id: 1,
-    category: "catChinese",
-    title: { en: "How to learn Chinese via Indonesian", zh: "如何通过印尼语学中文", zt: "如何透過印尼語學中文", th: "วิธีเรียนภาษาจีนผ่านภาษาอินโดนีเซีย" },
-    excerpt: { en: "Discover the hidden similarities...", zh: "探索语法和词汇中的隐藏相似之处...", zt: "探索語法和詞彙中的隱藏相似之處...", th: "ค้นพบความคล้ายคลึงที่ซ่อนอยู่..." },
-    date: "2026-02-15",
-    image: "🐼"
-  },
-  {
-    id: 2,
-    category: "catThai",
-    title: { en: "Thai Tones: Why they aren't scary", zh: "泰语声调：为什么并不可怕", zt: "泰語聲調：為什麼並不可怕", th: "วรรณยุกต์ไทย: ทำไมถึงไม่น่ากลัว" },
-    excerpt: { en: "Mastering the 5 tones easily...", zh: "为初学者解释如何掌握 5 个声调...", zt: "為初學者解釋如何掌握 5 個聲調...", th: "การฝึกวรรณยุกต์ 5 เสียง..." },
-    date: "2026-01-20",
-    image: "🐘"
-  },
-  {
-    id: 3,
-    category: "catThai",
-    title: { en: "Best Thai street food phrases", zh: "泰语街头美食必背短语", zt: "泰語街頭美食必背短語", th: "วลีเด็ดสำหรับสั่งอาหารสตรีทฟู้ด" },
-    excerpt: { en: "Ordering food like a local...", zh: "像当地人一样点餐的技巧...", zt: "像當地人一樣點餐的技巧...", th: "สั่งอาหารอย่างมือโปร..." },
-    date: "2026-03-01",
-    image: "🍜"
-  }
 ];
 
 // --- 子组件 ---
@@ -130,13 +113,24 @@ const FeatureCard = ({ title, sub, icon, color, onClick, tNav }) => (
   </div>
 );
 
-const BlogCard = ({ post, lang, tReadMore, tCategory }) => (
-  <div className="bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-all group flex flex-col h-full">
+const BlogCard = ({ post, lang, tReadMore, tCategory, isAdmin, onDelete }) => (
+  <div className="bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-all group flex flex-col h-full relative">
+    {isAdmin && (
+      <button 
+        onClick={(e) => { e.stopPropagation(); onDelete(post.id); }}
+        className="absolute top-4 right-4 z-20 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+        title="Delete Post"
+      >
+        <IconTrash />
+      </button>
+    )}
     <div className="h-48 bg-slate-50 flex items-center justify-center text-7xl group-hover:scale-110 transition-transform duration-500">{post.image}</div>
     <div className="p-8 flex flex-col flex-1">
       <div className="flex items-center gap-3 mb-4">
         <span className="px-3 py-1 bg-[#00FFAB]/10 text-[#008F60] text-xs font-bold rounded-full uppercase tracking-wider">{tCategory}</span>
-        <span className="text-slate-300 text-xs">{post.date}</span>
+        <span className="text-slate-300 text-xs">
+          {post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleDateString() : 'Just now'}
+        </span>
       </div>
       <h3 className="text-xl font-bold mb-4 text-slate-900 leading-snug group-hover:text-[#00FFAB] transition-colors">{post.title[lang] || post.title.en}</h3>
       <p className="text-slate-500 text-sm mb-6 line-clamp-3 leading-relaxed">{post.excerpt[lang] || post.excerpt.en}</p>
@@ -154,6 +148,21 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(''); 
   const [user, setUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // 管理入口逻辑：通过点击 Logo 次数触发
+  const [logoClicks, setLogoClicks] = useState(0);
+
+  // 博客数据状态
+  const [blogPosts, setBlogPosts] = useState([]);
+  
+  // 管理员表单状态
+  const [newPost, setNewPost] = useState({
+    category: 'catThai',
+    image: '🐘',
+    title: { en: '', zh: '', zt: '', th: '' },
+    excerpt: { en: '', zh: '', zt: '', th: '' }
+  });
 
   const t = translations[lang] || translations.en;
 
@@ -174,15 +183,47 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  // 实时监听 Firestore 中的博客文章
+  useEffect(() => {
+    if (!user) return;
+    const blogQuery = collection(db, 'artifacts', appId, 'public', 'data', 'blogPosts');
+    const unsubscribe = onSnapshot(blogQuery, (snapshot) => {
+      const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setBlogPosts(posts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
+    }, (err) => {
+      console.error("Fetch Blogs Failed:", err);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // 处理 Logo 点击彩蛋
+  const handleLogoClick = () => {
+    const newCount = logoClicks + 1;
+    if (newCount >= 5) {
+      setLogoClicks(0); // 重置
+      if (!isAdmin) {
+        const pass = prompt("Enter Admin Password:");
+        if (pass === "admin123") {
+          setIsAdmin(true);
+          alert("Admin Mode Activated!");
+        }
+      } else {
+        setIsAdmin(false);
+        alert("Admin Mode Deactivated.");
+      }
+    } else {
+      setLogoClicks(newCount);
+      // 3秒后如果不继续点击则重置计数器
+      setTimeout(() => setLogoClicks(0), 3000);
+    }
+  };
+
   const handleSubscribe = async (e) => {
     e.preventDefault();
     if (!email || !user) return;
     setLoading(true);
     setErrorMsg('');
     try {
-      if (firebaseConfig.apiKey && firebaseConfig.apiKey.includes("YOUR_API")) {
-        throw new Error("Local Config Missing: Please replace placeholders with real keys.");
-      }
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'waitlist'), {
         email, lang, createdAt: serverTimestamp(), source: 'production_web'
       });
@@ -195,6 +236,39 @@ export default function App() {
     }
   };
 
+  const handleAddPost = async (e) => {
+    e.preventDefault();
+    if (!isAdmin) return;
+    setLoading(true);
+    try {
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'blogPosts'), {
+        ...newPost,
+        createdAt: serverTimestamp()
+      });
+      setNewPost({
+        category: 'catThai',
+        image: '🐘',
+        title: { en: '', zh: '', zt: '', th: '' },
+        excerpt: { en: '', zh: '', zt: '', th: '' }
+      });
+      alert("Post added successfully!");
+      setPage('blog'); // 发布后回到列表页
+    } catch (err) {
+      alert("Error adding post: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeletePost = async (postId) => {
+    if (!window.confirm("Are you sure you want to delete this post?")) return;
+    try {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'blogPosts', postId));
+    } catch (err) {
+      alert("Delete failed: " + err.message);
+    }
+  };
+
   const filteredPosts = activeCategory === 'catAll' 
     ? blogPosts 
     : blogPosts.filter(post => post.category === activeCategory);
@@ -204,24 +278,23 @@ export default function App() {
       {/* 导航栏 */}
       <nav className="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 h-16">
         <div className="max-w-6xl mx-auto px-6 h-full flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => setPage('home')}>
-            <div className="w-10 h-10 bg-[#00FFAB] rounded-xl flex items-center justify-center shadow-lg"><span className="text-xl">🐸</span></div>
+          {/* Logo 区域：现在是隐藏的管理入口 */}
+          <div 
+            className="flex items-center gap-2 cursor-pointer select-none active:scale-95 transition-transform" 
+            onClick={handleLogoClick}
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transition-colors ${isAdmin ? 'bg-slate-900' : 'bg-[#00FFAB]'}`}>
+              <span className="text-xl">🐸</span>
+            </div>
             <span className="text-xl font-black">LinguaGua</span>
           </div>
+
           <div className="hidden md:flex items-center gap-8 font-semibold text-sm">
             <button onClick={() => setPage('home')} className={page === 'home' ? 'text-[#00FFAB]' : 'hover:text-[#00FFAB]'}>{t.navHome}</button>
-            {/* 条件显示的学习入口按钮 */}
-            {t.navThai && (
-              <button onClick={() => setPage('thai')} className={page === 'thai' ? 'text-[#00FFAB]' : 'hover:text-[#00FFAB]'}>{t.navThai}</button>
-            )}
-            {t.navChinese && (
-              <button onClick={() => setPage('chinese')} className={page === 'chinese' ? 'text-[#00FFAB]' : 'hover:text-[#00FFAB]'}>{t.navChinese}</button>
-            )}
-            
-            {/* 将博客按钮移动到下拉框左边 */}
-            <button onClick={() => setPage('blog')} className={page === 'blog' ? 'text-[#00FFAB]' : 'hover:text-[#00FFAB]'}>{t.navBlog}</button>
+            {t.navThai && <button onClick={() => setPage('thai')} className={page === 'thai' ? 'text-[#00FFAB]' : 'hover:text-[#00FFAB]'}>{t.navThai}</button>}
+            {t.navChinese && <button onClick={() => setPage('chinese')} className={page === 'chinese' ? 'text-[#00FFAB]' : 'hover:text-[#00FFAB]'}>{t.navChinese}</button>}
+            <button onClick={() => setPage('blog')} className={page === 'blog' || page === 'admin' ? 'text-[#00FFAB]' : 'hover:text-[#00FFAB]'}>{t.navBlog}</button>
 
-            {/* 语言下拉框 */}
             <div className="relative group">
               <button className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200 hover:bg-slate-100 transition-colors">
                 <IconGlobe /><span className="uppercase text-xs">{lang}</span>
@@ -236,7 +309,6 @@ export default function App() {
         </div>
       </nav>
 
-      {/* 主体内容 */}
       <main className="pt-32 pb-20">
         {page === 'home' ? (
           <div className="max-w-6xl mx-auto px-6">
@@ -245,16 +317,8 @@ export default function App() {
               <p className="text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed">{t.heroSub}</p>
             </div>
             <div className={`grid ${t.learnThai && t.learnChinese ? 'md:grid-cols-2' : 'grid-cols-1'} gap-8 max-w-4xl mx-auto`}>
-              {t.learnThai && (
-                <div className={t.learnChinese ? "" : "max-w-md mx-auto w-full"}>
-                  <FeatureCard title={t.learnThai} sub={t.subThai} icon="🐘" color="bg-gradient-to-br from-[#00FFAB] to-[#00D1FF]" onClick={() => setPage('thai')} tNav={t.navThai}/>
-                </div>
-              )}
-              {t.learnChinese && (
-                <div className={t.learnThai ? "" : "max-w-md mx-auto w-full"}>
-                  <FeatureCard title={t.learnChinese} sub={t.subChinese} icon="🐼" color="bg-gradient-to-br from-slate-800 to-slate-600" onClick={() => setPage('chinese')} tNav={t.navChinese}/>
-                </div>
-              )}
+              {t.learnThai && <div className={t.learnChinese ? "" : "max-w-md mx-auto w-full"}><FeatureCard title={t.learnThai} sub={t.subThai} icon="🐘" color="bg-gradient-to-br from-[#00FFAB] to-[#00D1FF]" onClick={() => setPage('thai')} tNav={t.navThai}/></div>}
+              {t.learnChinese && <div className={t.learnThai ? "" : "max-w-md mx-auto w-full"}><FeatureCard title={t.learnChinese} sub={t.subChinese} icon="🐼" color="bg-gradient-to-br from-slate-800 to-slate-600" onClick={() => setPage('chinese')} tNav={t.navChinese}/></div>}
             </div>
           </div>
         ) : page === 'blog' ? (
@@ -263,36 +327,102 @@ export default function App() {
             
             <div className="flex flex-wrap justify-center gap-3 mb-12">
               {['catAll', 'catChinese', 'catThai'].map((catKey) => (
-                <button
-                  key={catKey}
-                  onClick={() => setActiveCategory(catKey)}
-                  className={`px-6 py-2 rounded-full text-sm font-bold transition-all border ${
-                    activeCategory === catKey 
-                      ? 'bg-slate-900 text-white border-slate-900 shadow-lg' 
-                      : 'bg-white text-slate-500 border-slate-200 hover:border-[#00FFAB] hover:text-[#00FFAB]'
-                  }`}
-                >
+                <button key={catKey} onClick={() => setActiveCategory(catKey)} className={`px-6 py-2 rounded-full text-sm font-bold transition-all border ${activeCategory === catKey ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-500 border-slate-200 hover:border-[#00FFAB] hover:text-[#00FFAB]'}`}>
                   {t[catKey]}
                 </button>
               ))}
+              {isAdmin && (
+                <button onClick={() => setPage('admin')} className="px-6 py-2 rounded-full text-sm font-bold bg-slate-900 text-[#00FFAB] flex items-center gap-2 shadow-lg">
+                  <IconPlus /> {t.addPost}
+                </button>
+              )}
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {filteredPosts.map(post => (
-                <BlogCard 
-                  key={post.id} 
-                  post={post} 
-                  lang={lang} 
-                  tReadMore={t.readMore} 
-                  tCategory={t[post.category]}
-                />
+                <BlogCard key={post.id} post={post} lang={lang} tReadMore={t.readMore} tCategory={t[post.category]} isAdmin={isAdmin} onDelete={handleDeletePost} />
               ))}
               {filteredPosts.length === 0 && (
-                <div className="col-span-full py-20 text-center text-slate-400">
-                  No posts found in this category.
-                </div>
+                <div className="col-span-full py-20 text-center text-slate-400">No Insights Found.</div>
               )}
             </div>
+          </div>
+        ) : page === 'admin' ? (
+          <div className="max-w-3xl mx-auto px-6 animate-in slide-in-from-right-10 duration-500">
+            <div className="flex items-center justify-between mb-12">
+              <h1 className="text-3xl font-black">{t.adminTitle}</h1>
+              <button onClick={() => setPage('blog')} className="text-slate-500 text-sm font-bold flex items-center gap-2 hover:text-slate-800">
+                 {t.backToBlog}
+              </button>
+            </div>
+
+            <form onSubmit={handleAddPost} className="space-y-8 bg-slate-50 p-8 rounded-3xl border border-slate-200">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Category</label>
+                  <select 
+                    value={newPost.category} 
+                    onChange={e => setNewPost({...newPost, category: e.target.value})}
+                    className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#00FFAB]"
+                  >
+                    <option value="catThai">Learn Thai</option>
+                    <option value="catChinese">Learn Chinese</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Icon (Emoji)</label>
+                  <input 
+                    type="text" 
+                    value={newPost.image} 
+                    onChange={e => setNewPost({...newPost, image: e.target.value})}
+                    placeholder="🐘"
+                    className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#00FFAB]"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <label className="block text-xs font-black uppercase tracking-widest text-slate-400">Post Titles</label>
+                {languages.map(l => (
+                  <div key={l.code} className="flex items-center gap-4">
+                    <span className="w-8 text-[10px] font-bold text-slate-400">{l.code.toUpperCase()}</span>
+                    <input 
+                      type="text" 
+                      required
+                      value={newPost.title[l.code]} 
+                      onChange={e => setNewPost({...newPost, title: {...newPost.title, [l.code]: e.target.value}})}
+                      placeholder={`Title in ${l.name}`}
+                      className="flex-1 p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00FFAB]"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-4">
+                <label className="block text-xs font-black uppercase tracking-widest text-slate-400">Post Excerpts (Summary)</label>
+                {languages.map(l => (
+                  <div key={l.code} className="flex items-center gap-4">
+                    <span className="w-8 text-[10px] font-bold text-slate-400">{l.code.toUpperCase()}</span>
+                    <textarea 
+                      required
+                      value={newPost.excerpt[l.code]} 
+                      onChange={e => setNewPost({...newPost, excerpt: {...newPost.excerpt, [l.code]: e.target.value}})}
+                      placeholder={`Summary in ${l.name}`}
+                      rows="2"
+                      className="flex-1 p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00FFAB]"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={loading}
+                className="w-full py-5 bg-[#00FFAB] text-slate-900 font-black rounded-2xl shadow-xl shadow-[#00FFAB]/20 hover:scale-[1.01] active:scale-95 transition-all"
+              >
+                {loading ? 'Publishing...' : 'Publish to Production'}
+              </button>
+            </form>
           </div>
         ) : (
           <div className="max-w-6xl mx-auto px-6 text-center py-20 animate-in zoom-in duration-300">
@@ -303,7 +433,6 @@ export default function App() {
         )}
       </main>
 
-      {/* 等候名单区域 */}
       <section className="bg-slate-900 py-32 text-white overflow-hidden relative">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[400px] bg-[#00FFAB]/5 blur-[120px] rounded-full pointer-events-none"></div>
         <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
@@ -317,25 +446,12 @@ export default function App() {
             </div>
           ) : (
             <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-4 max-w-xl mx-auto bg-white/5 p-2 rounded-[2rem] border border-white/10 backdrop-blur-sm">
-              <input 
-                type="email" 
-                required 
-                placeholder={t.emailPlaceholder} 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                disabled={loading} 
-                className="flex-1 px-6 py-4 bg-transparent border-none focus:outline-none focus:ring-0 text-white placeholder:text-slate-500"
-              />
-              <button 
-                type="submit" 
-                disabled={loading} 
-                className="px-10 py-4 bg-[#00FFAB] text-slate-900 font-black rounded-[1.5rem] hover:scale-105 active:scale-95 transition-all shadow-lg shadow-[#00FFAB]/20 disabled:opacity-50"
-              >
+              <input type="email" required placeholder={t.emailPlaceholder} value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} className="flex-1 px-6 py-4 bg-transparent border-none focus:outline-none focus:ring-0 text-white placeholder:text-slate-500" />
+              <button type="submit" disabled={loading} className="px-10 py-4 bg-[#00FFAB] text-slate-900 font-black rounded-[1.5rem] hover:scale-105 active:scale-95 transition-all shadow-lg shadow-[#00FFAB]/20 disabled:opacity-50">
                 {loading ? '...' : t.subscribe}
               </button>
             </form>
           )}
-          {errorMsg && <p className="text-red-400 mt-4 text-sm">{errorMsg}</p>}
         </div>
       </section>
 
