@@ -5,37 +5,41 @@ import { getFirestore, collection, addDoc, deleteDoc, doc, serverTimestamp, onSn
 
 /**
  * --- 安全的 Firebase 配置读取 ---
- * 修复了 Vercel 报错的语法问题
+ * 已更新为你提供的真实配置信息
  */
 const getFirebaseConfig = () => {
-  // 1. 优先尝试从 Vercel/环境注入的全局变量读取
+  // 默认使用你提供的配置
+  let config = {
+    apiKey: "AIzaSyAjdiPE9OowZuf_gfVhZTFIjFeESFg8Pe8",
+    authDomain: "linguagua-b5e23.firebaseapp.com",
+    projectId: "linguagua-b5e23",
+    storageBucket: "linguagua-b5e23.firebasestorage.app",
+    messagingSenderId: "943989183133",
+    appId: "1:943989183133:web:745fae40d35d84223afa74",
+    measurementId: "G-V4TTFZHZ9G"
+  };
+
+  // 如果环境中有注入的配置，则优先使用环境配置
   if (typeof __firebase_config !== 'undefined' && __firebase_config) {
     try {
-      return JSON.parse(__firebase_config);
+      const envConfig = JSON.parse(__firebase_config);
+      config = { ...config, ...envConfig };
     } catch (e) {
       console.error("Failed to parse __firebase_config", e);
     }
   }
-  
-  // 2. 备选：如果你在本地运行，请在这里填入你的真实配置
-  // 请确保这里的 JSON 格式完全正确，不要删除或多加括号
-  return {
-  apiKey: "AIzaSyAjdiPE9OowZuf_gfVhZTFIjFeESFg8Pe8",
-  authDomain: "linguagua-b5e23.firebaseapp.com",
-  projectId: "linguagua-b5e23",
-  storageBucket: "linguagua-b5e23.firebasestorage.app",
-  messagingSenderId: "943989183133",
-  appId: "1:943989183133:web:745fae40d35d84223afa74"
-  };
+  return config;
 };
 
-// 全局变量定义
-let firebaseApp, auth, db;
+let firebaseApp = null;
+let auth = null;
+let db = null;
+
 const firebaseConfig = getFirebaseConfig();
 
-// 初始化 Firebase，增加错误捕获防止构建或运行崩溃
 try {
-  if (firebaseConfig.apiKey && !firebaseConfig.apiKey.includes("在此处填入")) {
+  // 检查是否已填入有效 API Key
+  if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "在此处填入你的真实API_KEY") {
     firebaseApp = initializeApp(firebaseConfig);
     auth = getAuth(firebaseApp);
     db = getFirestore(firebaseApp);
@@ -65,8 +69,11 @@ const IconTrash = () => (
 const IconImage = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
 );
+const IconLogout = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+);
 
-// --- 多语言翻译 ---
+// --- 多语言翻译字典 ---
 const translations = {
   en: {
     navHome: "Home", navThai: "Learn Thai", navChinese: "Learn Chinese", navBlog: "Blog",
@@ -79,7 +86,7 @@ const translations = {
     subscribe: "Notify Me", footer: "© 2026 LinguaGua Language. All rights reserved.",
     blogTitle: "Insights", readMore: "Read More", 
     catAll: "All", catChinese: "Learn Chinese", catThai: "Learn Thai",
-    adminTitle: "Manage Content", backToBlog: "Back to Blog", addPost: "Add New Post"
+    adminTitle: "Manage Content", backToBlog: "Back to Blog", addPost: "Add New Post", exitAdmin: "Exit Admin"
   },
   zh: {
     navHome: "首页", navThai: "学泰语", navBlog: "博客",
@@ -92,7 +99,7 @@ const translations = {
     subscribe: "通知我", footer: "© 2026 LinguaGua Language. 版权所有。",
     blogTitle: "语言洞察", readMore: "阅读更多",
     catAll: "全部", catChinese: "学中文", catThai: "学泰语",
-    adminTitle: "内容管理后台", backToBlog: "返回博客", addPost: "发布新文章"
+    adminTitle: "内容管理后台", backToBlog: "返回博客", addPost: "发布新文章", exitAdmin: "退出管理"
   },
   zt: {
     navHome: "首頁", navThai: "學泰語", navBlog: "部落格",
@@ -105,7 +112,7 @@ const translations = {
     subscribe: "通知我", footer: "© 2026 LinguaGua Language. 版權所有。",
     blogTitle: "語言洞察", readMore: "閱讀更多",
     catAll: "全部", catChinese: "學中文", catThai: "學泰語",
-    adminTitle: "內容管理後台", backToBlog: "返回部落格", addPost: "發佈新文章"
+    adminTitle: "內容管理後台", backToBlog: "返回部落格", addPost: "發佈新文章", exitAdmin: "退出管理"
   },
   th: {
     navHome: "หน้าแรก", navChinese: "เรียนภาษาจีน", navBlog: "บล็อก",
@@ -118,7 +125,7 @@ const translations = {
     subscribe: "แจ้งเตือนฉัน", footer: "© 2026 LinguaGua Language. สงวนลิขสิทธิ์",
     blogTitle: "ความรู้จาก LinguaGua", readMore: "อ่านเพิ่มเติม",
     catAll: "ทั้งหมด", catChinese: "เรียนภาษาจีน", catThai: "เรียนภาษาไทย",
-    adminTitle: "จัดการเนื้อหา", backToBlog: "กลับไปที่บล็อก", addPost: "เพิ่มบทความใหม่"
+    adminTitle: "จัดการเนื้อหา", backToBlog: "กลับไปที่บล็อก", addPost: "เพิ่มบทความใหม่", exitAdmin: "ออกจากระบบ"
   }
 };
 
@@ -129,14 +136,18 @@ const languages = [
   { code: 'th', name: 'ไทย' }
 ];
 
-// --- 子组件 ---
+// --- 渲染组件 ---
 const FeatureCard = ({ title, sub, icon, color, onClick, tNav }) => (
   <div onClick={onClick} className={`group cursor-pointer relative overflow-hidden rounded-[2rem] p-8 text-white shadow-2xl transition-all hover:-translate-y-2 ${color}`}>
     <div className="relative z-10 flex flex-col items-center">
-      <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mb-6 backdrop-blur-md"><span className="text-5xl">{icon}</span></div>
+      <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mb-6 backdrop-blur-md">
+        <span className="text-5xl">{icon}</span>
+      </div>
       <h3 className="text-2xl font-bold mb-2 text-center">{title}</h3>
       <p className="opacity-80 text-sm mb-6 text-center">{sub}</p>
-      <div className="px-6 py-2 bg-white text-slate-800 rounded-full font-bold flex items-center gap-2 group-hover:gap-4 transition-all">{tNav} <IconChevronRight /></div>
+      <div className="px-6 py-2 bg-white text-slate-800 rounded-full font-bold flex items-center gap-2 group-hover:gap-4 transition-all">
+        {tNav} <IconChevronRight />
+      </div>
     </div>
   </div>
 );
@@ -173,9 +184,15 @@ const BlogCard = ({ post, lang, tReadMore, tCategory, isAdmin, onDelete }) => (
           {post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleDateString() : 'Just now'}
         </span>
       </div>
-      <h3 className="text-xl font-bold mb-4 text-slate-900 leading-snug group-hover:text-[#00FFAB] transition-colors line-clamp-2">{post.title[lang] || post.title.en}</h3>
-      <p className="text-slate-500 text-sm mb-6 line-clamp-3 leading-relaxed">{post.excerpt[lang] || post.excerpt.en}</p>
-      <div className="mt-auto pt-4 flex items-center gap-2 text-[#00FFAB] font-bold text-sm cursor-pointer">{tReadMore} <IconChevronRight /></div>
+      <h3 className="text-xl font-bold mb-4 text-slate-900 leading-snug group-hover:text-[#00FFAB] transition-colors line-clamp-2">
+        {post.title[lang] || post.title.en}
+      </h3>
+      <p className="text-slate-500 text-sm mb-6 line-clamp-3 leading-relaxed">
+        {post.excerpt[lang] || post.excerpt.en}
+      </p>
+      <div className="mt-auto pt-4 flex items-center gap-2 text-[#00FFAB] font-bold text-sm cursor-pointer">
+        {tReadMore} <IconChevronRight />
+      </div>
     </div>
   </div>
 );
@@ -202,7 +219,7 @@ export default function App() {
 
   const t = translations[lang] || translations.en;
 
-  // 1. 初始化认证
+  // 1. 初始化 Firebase 认证
   useEffect(() => {
     if (!auth) return;
 
@@ -222,7 +239,7 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 2. 监听博客数据
+  // 2. 实时同步博客数据
   useEffect(() => {
     if (!user || !db) return;
     const blogQuery = collection(db, 'artifacts', appId, 'public', 'data', 'blogPosts');
@@ -235,22 +252,24 @@ export default function App() {
     return () => unsubscribe();
   }, [user]);
 
+  // 处理 Logo 点击彩蛋触发管理员模式
   const handleLogoClick = () => {
     const newCount = logoClicks + 1;
     if (newCount >= 5) {
       setLogoClicks(0);
       if (!isAdmin) {
-        const pass = prompt("Enter Admin Password:");
+        const pass = prompt("请输入管理员密码:");
         if (pass === "admin123") {
           setIsAdmin(true);
-          alert("Admin Mode Activated!");
+          alert("管理员模式已激活！");
         }
       } else {
         setIsAdmin(false);
-        alert("Admin Mode Deactivated.");
+        alert("管理员模式已关闭。");
       }
     } else {
       setLogoClicks(newCount);
+      // 3秒内未继续点击则重置
       setTimeout(() => setLogoClicks(0), 3000);
     }
   };
@@ -267,7 +286,7 @@ export default function App() {
       setSent(true);
       setEmail('');
     } catch (err) {
-      setErrorMsg(err.message || "Submission failed.");
+      setErrorMsg(err.message || "提交失败，请重试。");
     } finally {
       setLoading(false);
     }
@@ -288,21 +307,21 @@ export default function App() {
         title: { en: '', zh: '', zt: '', th: '' },
         excerpt: { en: '', zh: '', zt: '', th: '' }
       });
-      alert("Post added successfully!");
+      alert("博文发布成功！");
       setPage('blog');
     } catch (err) {
-      alert("Error adding post: " + err.message);
+      alert("发布失败: " + err.message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeletePost = async (postId) => {
-    if (!db || !window.confirm("Are you sure you want to delete this post?")) return;
+    if (!db || !window.confirm("确定要删除这篇博文吗？")) return;
     try {
       await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'blogPosts', postId));
     } catch (err) {
-      alert("Delete failed: " + err.message);
+      alert("删除失败: " + err.message);
     }
   };
 
@@ -310,36 +329,26 @@ export default function App() {
     ? blogPosts 
     : blogPosts.filter(post => post.category === activeCategory);
 
-  // 核心逻辑：根据分类判断是否应该显示某种语言的输入框
   const shouldShowLangInput = (langCode) => {
-    // 学泰语：不给泰语母语者看，所以管理后台不需要输入泰语
     if (newPost.category === 'catThai') return langCode !== 'th';
-    // 学中文：不给简繁中文母语者看，所以管理后台不需要输入中文
     if (newPost.category === 'catChinese') return langCode !== 'zh' && langCode !== 'zt';
     return true;
   };
 
-  // 防白屏逻辑：如果没有初始化 firebaseApp，显示说明页面
+  // 配置缺失提示界面
   if (!firebaseApp) {
     return (
       <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-10 text-center">
-        <span className="text-6xl mb-6">⚙️</span>
-        <h1 className="text-2xl font-bold mb-4">Configuration Error</h1>
-        <p className="text-slate-400 max-w-md">
-          代码语法或配置有误。请检查 <code>LinguaGua.jsx</code> 中的 <code>getFirebaseConfig</code> 函数，确保填入的 API 密钥没有多余的括号。
-        </p>
-        <div className="mt-8 p-6 bg-white/5 rounded-2xl border border-white/10 text-xs text-left font-mono">
-          Vercel 提示：Unexpected {"\"}\""}<br/><br/>
-          解决方案：<br/>
-          1. 检查 API Key 前后的引号<br/>
-          2. 确保没有多加 <code>{"}"}</code> 号
-        </div>
+        <span className="text-6xl mb-6">🐸</span>
+        <h1 className="text-2xl font-bold mb-4">LinguaGua 正在启动中...</h1>
+        <p className="text-slate-400 max-w-md">正在连接数据库。如果长时间显示此页面，请检查 Firebase 配置是否正确。</p>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-white text-slate-800 font-sans selection:bg-[#00FFAB]/30">
+      {/* 导航栏 */}
       <nav className="fixed top-0 w-full z-50 bg-white/90 backdrop-blur-md border-b border-slate-100 h-16">
         <div className="max-w-6xl mx-auto px-6 h-full flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer select-none active:scale-95 transition-transform" onClick={handleLogoClick}>
@@ -353,6 +362,13 @@ export default function App() {
             {t.navThai && <button onClick={() => setPage('thai')} className={page === 'thai' ? 'text-[#00FFAB]' : 'hover:text-[#00FFAB]'}>{t.navThai}</button>}
             {t.navChinese && <button onClick={() => setPage('chinese')} className={page === 'chinese' ? 'text-[#00FFAB]' : 'hover:text-[#00FFAB]'}>{t.navChinese}</button>}
             <button onClick={() => setPage('blog')} className={page === 'blog' || page === 'admin' ? 'text-[#00FFAB]' : 'hover:text-[#00FFAB]'}>{t.navBlog}</button>
+            
+            {isAdmin && (
+              <button onClick={() => setIsAdmin(false)} className="text-red-500 font-bold px-3 py-1 bg-red-50 rounded-full border border-red-100 hover:bg-red-100 transition-all flex items-center gap-2">
+                <IconLogout /> {t.exitAdmin}
+              </button>
+            )}
+
             <div className="relative group">
               <button className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-200 hover:bg-slate-100 transition-colors">
                 <IconGlobe /><span className="uppercase text-xs">{lang}</span>
@@ -389,7 +405,7 @@ export default function App() {
                 </button>
               ))}
               {isAdmin && (
-                <button onClick={() => setPage('admin')} className="px-6 py-2 rounded-full text-sm font-bold bg-slate-900 text-[#00FFAB] flex items-center gap-2 shadow-lg">
+                <button onClick={() => setPage('admin')} className="px-6 py-2 rounded-full text-sm font-bold bg-slate-900 text-[#00FFAB] flex items-center gap-2 shadow-lg hover:scale-105 transition-transform">
                   <IconPlus /> {t.addPost}
                 </button>
               )}
@@ -399,66 +415,71 @@ export default function App() {
                 <BlogCard key={post.id} post={post} lang={lang} tReadMore={t.readMore} tCategory={t[post.category]} isAdmin={isAdmin} onDelete={handleDeletePost} />
               ))}
               {filteredPosts.length === 0 && (
-                <div className="col-span-full py-20 text-center text-slate-400">No Insights Found.</div>
+                <div className="col-span-full py-20 text-center text-slate-400 font-bold">目前还没有相关博文。</div>
               )}
             </div>
           </div>
         ) : page === 'admin' ? (
           <div className="max-w-3xl mx-auto px-6 animate-in slide-in-from-right-10 duration-500">
             <div className="flex items-center justify-between mb-12">
-              <h1 className="text-3xl font-black">{t.adminTitle}</h1>
-              <button onClick={() => setPage('blog')} className="text-slate-500 text-sm font-bold flex items-center gap-2 hover:text-slate-800">{t.backToBlog}</button>
+              <h1 className="text-3xl font-black text-slate-900">{t.adminTitle}</h1>
+              <button onClick={() => setPage('blog')} className="text-slate-500 text-sm font-bold flex items-center gap-2 hover:text-slate-900 transition-colors">
+                <IconChevronRight /> {t.backToBlog}
+              </button>
             </div>
-            <form onSubmit={handleAddPost} className="space-y-8 bg-slate-50 p-8 rounded-3xl border border-slate-200">
+            <form onSubmit={handleAddPost} className="space-y-8 bg-slate-50 p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Category</label>
-                  <select value={newPost.category} onChange={e => setNewPost({...newPost, category: e.target.value})} className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#00FFAB]">
-                    <option value="catThai">Learn Thai</option>
-                    <option value="catChinese">Learn Chinese</option>
+                <div className="space-y-2">
+                  <label className="block text-xs font-black uppercase tracking-widest text-slate-400">分类</label>
+                  <select value={newPost.category} onChange={e => setNewPost({...newPost, category: e.target.value})} className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#00FFAB] focus:border-transparent transition-all outline-none">
+                    <option value="catThai">学泰语</option>
+                    <option value="catChinese">学中文</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-2"><IconImage /> Feature Image (URL)</label>
-                  <input type="url" value={newPost.imageUrl} onChange={e => setNewPost({...newPost, imageUrl: e.target.value})} placeholder="https://example.com/photo.jpg" className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#00FFAB]" />
+                <div className="space-y-2">
+                  <label className="block text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2"><IconImage /> 封面图片 (URL)</label>
+                  <input type="url" value={newPost.imageUrl} onChange={e => setNewPost({...newPost, imageUrl: e.target.value})} placeholder="https://images.unsplash.com/..." className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#00FFAB] outline-none transition-all" />
                 </div>
               </div>
+              
               {newPost.imageUrl && (
                 <div className="animate-in fade-in slide-in-from-top-4">
-                  <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Image Preview</label>
-                  <div className="w-full h-48 rounded-2xl border-2 border-dashed border-slate-200 overflow-hidden bg-white flex items-center justify-center">
-                    <img src={newPost.imageUrl} alt="Preview" className="max-w-full max-h-full object-contain" />
+                  <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">封面预览</label>
+                  <div className="w-full h-48 rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-inner flex items-center justify-center">
+                    <img src={newPost.imageUrl} alt="Preview" className="w-full h-full object-cover" />
                   </div>
                 </div>
               )}
-              <div className="space-y-4">
-                <label className="block text-xs font-black uppercase tracking-widest text-slate-400">Post Titles</label>
+
+              <div className="space-y-6">
+                <label className="block text-xs font-black uppercase tracking-widest text-slate-400">博文标题</label>
                 {languages.filter(l => shouldShowLangInput(l.code)).map(l => (
                   <div key={l.code} className="flex items-center gap-4 animate-in fade-in zoom-in duration-300">
                     <span className="w-8 text-[10px] font-bold text-slate-400">{l.code.toUpperCase()}</span>
-                    <input type="text" required value={newPost.title[l.code]} onChange={e => setNewPost({...newPost, title: {...newPost.title, [l.code]: e.target.value}})} placeholder={`Title in ${l.name}`} className="flex-1 p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00FFAB]" />
+                    <input type="text" required value={newPost.title[l.code]} onChange={e => setNewPost({...newPost, title: {...newPost.title, [l.code]: e.target.value}})} placeholder={`Title in ${l.name}`} className="flex-1 p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#00FFAB] outline-none" />
                   </div>
                 ))}
               </div>
-              <div className="space-y-4">
-                <label className="block text-xs font-black uppercase tracking-widest text-slate-400">Post Excerpts (Summary)</label>
+
+              <div className="space-y-6">
+                <label className="block text-xs font-black uppercase tracking-widest text-slate-400">博文摘要 (Summary)</label>
                 {languages.filter(l => shouldShowLangInput(l.code)).map(l => (
                   <div key={l.code} className="flex items-center gap-4 animate-in fade-in zoom-in duration-300">
                     <span className="w-8 text-[10px] font-bold text-slate-400">{l.code.toUpperCase()}</span>
-                    <textarea required value={newPost.excerpt[l.code]} onChange={e => setNewPost({...newPost, excerpt: {...newPost.excerpt, [l.code]: e.target.value}})} placeholder={`Summary in ${l.name}`} rows="2" className="flex-1 p-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00FFAB]" />
+                    <textarea required value={newPost.excerpt[l.code]} onChange={e => setNewPost({...newPost, excerpt: {...newPost.excerpt, [l.code]: e.target.value}})} placeholder={`Summary in ${l.name}`} rows="2" className="flex-1 p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#00FFAB] outline-none" />
                   </div>
                 ))}
               </div>
-              <button type="submit" disabled={loading} className="w-full py-5 bg-[#00FFAB] text-slate-900 font-black rounded-2xl shadow-xl shadow-[#00FFAB]/20 hover:scale-[1.01] active:scale-95 transition-all">
-                {loading ? 'Publishing...' : 'Publish to Production'}
+              <button type="submit" disabled={loading} className="w-full py-5 bg-[#00FFAB] text-slate-900 font-black rounded-2xl shadow-xl shadow-[#00FFAB]/20 hover:scale-[1.01] active:scale-95 transition-all disabled:opacity-50">
+                {loading ? '发布中...' : '发布到线上数据库'}
               </button>
             </form>
           </div>
         ) : (
           <div className="max-w-6xl mx-auto px-6 text-center py-20 animate-in zoom-in duration-300">
-             <h2 className="text-5xl font-black mb-8">{page === 'thai' ? t.navThai : t.navChinese}</h2>
-             <p className="text-xl text-slate-500 mb-12">Coming Soon on App Stores!</p>
-             <button onClick={() => setPage('home')} className="px-8 py-3 bg-slate-900 text-white rounded-full font-bold hover:bg-slate-800 transition-all">Back Home</button>
+             <h2 className="text-5xl font-black mb-8 text-slate-900">{page === 'thai' ? t.navThai : t.navChinese}</h2>
+             <p className="text-xl text-slate-500 mb-12">即将上线应用商店，敬请期待！</p>
+             <button onClick={() => setPage('home')} className="px-10 py-4 bg-slate-900 text-white rounded-full font-bold hover:bg-slate-800 transition-all shadow-lg">返回首页</button>
           </div>
         )}
       </main>
@@ -466,27 +487,29 @@ export default function App() {
       <section className="bg-slate-900 py-32 text-white overflow-hidden relative">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[400px] bg-[#00FFAB]/5 blur-[120px] rounded-full pointer-events-none"></div>
         <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
-          <h2 className="text-4xl md:text-5xl font-black mb-6">{t.waitlist}</h2>
+          <h2 className="text-4xl md:text-5xl font-black mb-6 tracking-tight">{t.waitlist}</h2>
           <p className="text-slate-400 mb-12 text-lg">{t.waitlistSub}</p>
           {sent ? (
             <div className="bg-[#00FFAB]/20 border border-[#00FFAB]/40 p-10 rounded-[2.5rem] inline-flex flex-col items-center gap-4 animate-in zoom-in duration-500">
               <div className="w-16 h-16 bg-[#00FFAB] rounded-full flex items-center justify-center text-slate-900 shadow-xl shadow-[#00FFAB]/20"><IconCheck /></div>
-              <span className="text-[#00FFAB] text-xl font-bold">Success! You are on the list.</span>
+              <span className="text-[#00FFAB] text-xl font-bold">成功！你已在名单中。</span>
             </div>
           ) : (
-            <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-4 max-w-xl mx-auto bg-white/5 p-2 rounded-[2rem] border border-white/10 backdrop-blur-sm">
-              <input type="email" required placeholder={t.emailPlaceholder} value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} className="flex-1 px-6 py-4 bg-transparent border-none focus:outline-none focus:ring-0 text-white placeholder:text-slate-500" />
-              <button type="submit" disabled={loading} className="px-10 py-4 bg-[#00FFAB] text-slate-900 font-black rounded-[1.5rem] hover:scale-105 active:scale-95 transition-all shadow-lg shadow-[#00FFAB]/20 disabled:opacity-50">{loading ? '...' : t.subscribe}</button>
+            <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-4 max-w-xl mx-auto bg-white/5 p-2 rounded-[2rem] border border-white/10 backdrop-blur-sm shadow-2xl">
+              <input type="email" required placeholder={t.emailPlaceholder} value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} className="flex-1 px-8 py-5 bg-transparent border-none focus:outline-none focus:ring-0 text-white placeholder:text-slate-500 text-lg" />
+              <button type="submit" disabled={loading} className="px-10 py-5 bg-[#00FFAB] text-slate-900 font-black rounded-[1.6rem] hover:scale-105 active:scale-95 transition-all shadow-lg shadow-[#00FFAB]/20 disabled:opacity-50 text-lg">
+                {loading ? '...' : t.subscribe}
+              </button>
             </form>
           )}
-          {errorMsg && <p className="text-red-400 mt-4 text-xs font-mono">{errorMsg}</p>}
+          {errorMsg && <p className="text-red-400 mt-6 text-xs font-mono bg-red-400/10 p-3 rounded-lg border border-red-400/20 inline-block">{errorMsg}</p>}
         </div>
       </section>
 
-      <footer className="py-16 text-center text-slate-400 text-sm border-t border-slate-50">
+      <footer className="py-16 text-center text-slate-400 text-sm border-t border-slate-50 bg-slate-50/50">
         <div className="flex items-center justify-center gap-2 mb-4 opacity-50 grayscale">
-          <div className="w-8 h-8 bg-slate-200 rounded-lg"></div>
-          <span className="font-bold">LinguaGua</span>
+          <div className="w-8 h-8 bg-slate-200 rounded-lg flex items-center justify-center font-black">L</div>
+          <span className="font-black tracking-tighter">LinguaGua</span>
         </div>
         {t.footer}
       </footer>
